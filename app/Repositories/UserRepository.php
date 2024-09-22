@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Repositories;
+
+use App\Models\User;
+use Kreait\Firebase\Contract\Database;
+use App\Repositories\Interfaces\UserRepositoryInterface;
+use Illuminate\Support\Facades\Hash;
+
+class UserRepository implements UserRepositoryInterface
+{
+    protected $database;
+
+    public function __construct(Database $database)
+    {
+        $this->database = $database;
+    }
+
+    public function create(array $data)
+    {
+        return User::create($data);
+    }
+
+    public function update($id, array $data)
+    {
+        $user = User::findOrFail($id);
+        $user->update($data);
+        return $user;
+    }
+
+    public function delete($id)
+    {
+        $user = User::findOrFail($id);
+        return $user->delete();
+    }
+
+    public function find($id)
+    {
+        return User::findOrFail($id);
+    }
+
+    public function All()
+    {
+        return User::all();
+    }
+
+    public function findByRole($role)
+    {
+        return User::where('role', $role)->get();
+    }
+
+
+}
