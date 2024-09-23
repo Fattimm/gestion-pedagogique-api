@@ -172,6 +172,7 @@ return [
         Kreait\Laravel\Firebase\ServiceProvider::class,
         App\Providers\UserServiceProvider::class,
         App\Providers\FirebaseServiceProvider::class,
+        App\Providers\PromoServiceProvider::class,
 
 
 

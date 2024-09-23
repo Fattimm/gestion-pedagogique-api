@@ -10,7 +10,16 @@ class Referentiel extends FirebaseModel
 
     use SoftDeletes, HasFactory; 
 
-    protected $fillable = ['name', 'description', 'statut'];
+    protected $fillable = [
+        'code',
+        'libelle',
+        'description',
+        'photo',
+        'statut',
+        'competences' 
+    ];
+
+    protected $firebaseCollection = 'referentiels';
 
     protected $casts = [
         'statut' => 'string',

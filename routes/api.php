@@ -4,6 +4,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\PromoController;
+use App\Http\Controllers\ReferentielController;
 use Laravel\Passport\Http\Controllers\ScopeController;
 use Laravel\Passport\Http\Controllers\AccessTokenController;
 use Laravel\Passport\Http\Controllers\AuthorizationController;
@@ -12,6 +14,7 @@ use Laravel\Passport\Http\Controllers\DenyAuthorizationController;
 use Laravel\Passport\Http\Controllers\PersonalAccessTokenController;
 use Laravel\Passport\Http\Controllers\ApproveAuthorizationController;
 use Laravel\Passport\Http\Controllers\AuthorizedAccessTokenController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -42,6 +45,35 @@ Route::prefix('v1')->group(function () {
     Route::get('/users/{id}', [UserController::class, 'show']);
 
 
+    Route::get('/referentiels', [ReferentielController::class, 'index']);
+    Route::post('/referentiels', [ReferentielController::class, 'store']);
+    Route::get('/referentiels/{id}', [ReferentielController::class, 'show']);
+    Route::patch('/referentiels/{id}', [ReferentielController::class, 'update']);
+    Route::delete('/referentiels/{id}', [ReferentielController::class, 'destroy']);
+    Route::get('/archive/referentiels', [ReferentielController::class, 'archive']);
+
+
+    Route::post('/promotions', [PromoController::class, 'store']);
+    Route::get('/promotions', [PromoController::class, 'index']);
+    Route::patch('/promotions/{id}', [PromoController::class, 'update']);
+
+    // Récupérer la promotion en cours
+    Route::get('/promotions/encours', [PromoController::class, 'getCurrentPromo']);
+
+    // Gérer les référentiels d'une promotion
+    Route::patch('/promotions/{id}/referentiels', [PromoController::class, 'updateReferentiels']);
+
+    // Changer l'état d'une promotion
+    Route::patch('/promotions/{id}/etat', [PromoController::class, 'updateStatus']);
+
+    // Obtenir les statistiques d'une promotion
+    Route::get('/promotions/{id}/stats', [PromoController::class, 'getStats']);
+
+    // Clôturer une promotion
+    Route::patch('/promotions/{id}/cloturer', [PromoController::class, 'closePromo']);
+
+    // Lister les référentiels actifs d'une promotion
+    Route::get('/promotions/{id}/referentiels', [PromoController::class, 'getReferentiels']);
 
 });
 

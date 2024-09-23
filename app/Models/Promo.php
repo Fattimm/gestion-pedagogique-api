@@ -13,21 +13,22 @@ class Promo extends FirebaseModel
 
 
     protected $fillable = [
+        'id',
         'libelle',
         'date_debut',
         'date_fin',
         'duree',
         'etat',
-        'photo_couverture'
+        'photo_couverture',
     ];
-
+ 
     protected $casts = [
         'date_debut' => 'date',
         'date_fin' => 'date',
         'etat' => 'string',
     ];
 
- 
+    protected $firebaseCollection = 'promotions';
 
     public function users()
     {
