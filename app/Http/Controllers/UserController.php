@@ -47,17 +47,17 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $role = $request->input('role');
-    
+
         // Lister les utilisateurs de la base locale
         $localUsers = $this->userService->listUsers(['role' => $role]);
-    
+
         // Lister les utilisateurs de Firebase
         $firebaseUsers = $this->userFirebaseService->listUsers(['role' => $role]);
-    
+
         // Fusionner les utilisateurs locaux et Firebase
         $allUsers = $localUsers->toArray(); // Convertit la collection Eloquent en tableau
         $allUsers = array_merge($allUsers, $firebaseUsers);
-    
+
         return response()->json([
             'message' => 'Liste des utilisateurs récupérée avec succès',
             'users' => $allUsers
@@ -67,36 +67,30 @@ class UserController extends Controller
 
 
     public function update(Request $request, $id)
-{
-    // Récupérer l'utilisateur local
-    $localUser = User::findOrFail($id);
+    {
+        // Récupérer l'utilisateur local
+        $User = User::findOrFail($id);
 
-    // Vérification des permissions pour modifier un utilisateur
-    $this->authorize('update', $localUser);
+        // Extraire l'ID Firebase de l'utilisateur local
+        $firebaseId = $User->firebase_id;
 
-    // Extraire l'ID Firebase de l'utilisateur local
-    $firebaseId = $localUser->firebase_id;
+        // Mettre à jour l'utilisateur dans la base locale
+        $updatedLocalUser = $this->userService->updateUser($id, $request->all());
 
-    // Mettre à jour l'utilisateur dans la base locale
-    $updatedLocalUser = $this->userService->updateUser($id, $request->all());
+        // Mettre à jour l'utilisateur dans Firebase
+        $updatedFirebaseUser = $this->userFirebaseService->updateUser($id, $request->all());
 
-    // Mettre à jour l'utilisateur dans Firebase
-    $updatedFirebaseUser = $this->userFirebaseService->updateUser($firebaseId, $request->all());
-
-    return response()->json([
-        'message' => 'Utilisateur mis à jour avec succès',
-        'local_user' => $updatedLocalUser,
-        'firebase_user' => $updatedFirebaseUser
-    ]);
-}
+        return response()->json([
+            'message' => 'Utilisateur mis à jour avec succès',
+            'local_user' => $updatedLocalUser,
+            'firebase_user' => $updatedFirebaseUser
+        ]);
+    }
 
 
     public function destroy($id)
     {
         $user = User::findOrFail($id);
-
-        // Vérification des permissions pour supprimer un utilisateur
-        $this->authorize('delete', $user);
 
         // Suppression de l'utilisateur de la base locale
         $this->userService->deleteUser($id);
@@ -107,17 +101,9 @@ class UserController extends Controller
         return response()->json(['message' => 'Utilisateur supprimé avec succès']);
     }
 
-    public function show($id)
-    {
-        // Récupérer l'utilisateur de la base locale
-        $localUser = $this->userService->getUserDetails($id);
 
-        // Récupérer l'utilisateur de Firebase
-        $firebaseUser = $this->userFirebaseService->getUserById($id);
+  
 
-        return response()->json([
-            'local_user' => $localUser,
-            'firebase_user' => $firebaseUser
-        ]);
-    }
+
+   
 }

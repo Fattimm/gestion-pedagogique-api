@@ -117,7 +117,7 @@ abstract class FirebaseModel extends Model implements FirebaseModelInterface
     {
         $this->id = $id;
         return $this;
-    }    
+    }
 
     public function create(array $data): self
     {
@@ -128,18 +128,31 @@ abstract class FirebaseModel extends Model implements FirebaseModelInterface
     }
 
     public function read(string $id): ?self
-    {
-        $document = $this->firestore->database()->collection($this->firebaseCollection)->document($id)->snapshot();
+{
+    $document = $this->firestore->database()->collection($this->firebaseCollection)
+        ->document($id)
+        ->snapshot();
 
-        if ($document->exists()) {
-            $this->setId($id);
-            // Assurez-vous de définir les attributs appropriés à partir des données
-            // $this->libelle = $document->get('libelle'); // Exemple
-            return $this;
+    if ($document->exists() && !$document->get('is_deleted')) {
+        $this->setId($id);
+
+        // Remplissez les attributs appropriés à partir des données du document
+        $data = $document->data();
+        foreach ($data as $key => $value) {
+            if (in_array($key, $this->fillable)) {
+                $this->{$key} = $value;
+            }
         }
 
-        return null;
+        return $this;
     }
+
+    return null;
+}
+
+
+
+
 
     public function updateFirebase(array $data): self
     {
@@ -150,24 +163,38 @@ abstract class FirebaseModel extends Model implements FirebaseModelInterface
 
 
     public function delete(): void
-    {
-        $this->deleteFromFirebase();
+{
+    // Mettre à jour le champ is_deleted au lieu de supprimer le document
+    $this->updateFirebase(['is_deleted' => true]);
+}
+
+public function getDeletedItems()
+{
+    $documents = $this->firestore->database()->collection($this->firebaseCollection)
+        ->where('is_deleted', '==', true)
+        ->documents();
+
+    $deletedItems = [];
+    foreach ($documents as $document) {
+        if ($document->exists()) {
+            $deletedItems[] = $document->data();
+        }
     }
+
+    return $deletedItems;
+}
+
+
 
     public function toArray(): array
     {
-        // On récupère toutes les propriétés définies dans $fillable
-        $data = [];
-
-        foreach ($this->fillable as $attribute) {
-            if (property_exists($this, $attribute)) {
-                $data[$attribute] = $this->{$attribute};
-            }
-        }
-
-        // Supprimer les attributs définis dans $hidden
-        return Arr::except($data, $this->hidden);
+        $data = parent::toArray();
+        Log::info('Données sérialisées du référentiel : ', $data);
+        return $data;
     }
 
-
+    public function getId()
+    {
+        return $this->id;
+    }
 }

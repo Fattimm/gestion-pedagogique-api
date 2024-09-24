@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Exception;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use App\Services\UploadPhotoFirebaseService;
 use App\Services\Interfaces\UserFirebaseServiceInterface;
@@ -19,7 +20,6 @@ class UserFirebaseService implements UserFirebaseServiceInterface
     {
         $this->userRepository = $userRepository;
         $this->uploadPhotoService = $uploadPhotoService;
-
     }
 
     public function createUser(array $data)
@@ -44,7 +44,6 @@ class UserFirebaseService implements UserFirebaseServiceInterface
                 'data' => $userId,
                 'message' => 'Utilisateur créé avec succès'
             ];
-
         } catch (\Exception $e) {
             // Gérer l'exception spécifique pour l'utilisateur existant
             if (strpos($e->getMessage(), "Un utilisateur avec cet email ou ce numéro de téléphone existe déjà") !== false) {
@@ -69,33 +68,45 @@ class UserFirebaseService implements UserFirebaseServiceInterface
         return $this->userRepository->all($filters);
     }
 
+    
 
-    public function updateUser(string $firebaseId, array $data)
+    public function updateUser(string $id, array $data)
     {
         try {
+            // Récupérer l'utilisateur local
+            $user = User::findOrFail($id);
+            if (!$user) {
+                throw new \Exception("Utilisateur local non trouvé.");
+            }
+
+            $firebaseId = $user->firebase_id;
+            if (!$firebaseId) {
+                throw new \Exception("ID Firebase non trouvé pour cet utilisateur.");
+            }
+
             // Vérifier si une photo est présente et uploader si nécessaire
             if (isset($data['photo']) && $data['photo'] instanceof UploadedFile) {
-                $uploadService = new UploadPhotoFirebaseService(app('firebase.storage'));
-                $data['photo_url'] = $uploadService->uploadPhoto($data['photo']);
+                $data['photo_url'] = $this->uploadPhotoService->uploadPhoto($data['photo']);
+                unset($data['photo']); // Retirer la photo du tableau de données
             }
 
             // Mettre à jour l'utilisateur dans Firebase
             $this->userRepository->update($firebaseId, $data);
 
+            // Mettre à jour l'utilisateur local
+            $user->update($data);
+
             return [
                 'status' => 200,
-                'message' => 'Utilisateur mis à jour avec succès dans Firebase'
+                'message' => 'Utilisateur mis à jour avec succès dans Firebase et localement'
             ];
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return [
                 'status' => 500,
-                'message' => 'Erreur lors de la mise à jour de l\'utilisateur dans Firebase : ' . $e->getMessage()
+                'message' => 'Erreur lors de la mise à jour de l\'utilisateur : ' . $e->getMessage()
             ];
         }
     }
-
-
-
 
     public function deleteUser(string $id)
     {
@@ -109,31 +120,4 @@ class UserFirebaseService implements UserFirebaseServiceInterface
             ];
         }
     }
-
-    public function getUserById(string $id)
-    {
-        return $this->userRepository->find($id);
-    }
-
-    public function filterUsersByRole(string $role)
-    {
-        return $this->userRepository->filterByRole($role);
-    }
-
-
-    // protected function addUserToRoleCollection(string $userId, string $role)
-    // {
-    //     // Chemin de la sous-collection pour le rôle
-    //     $roleCollectionPath = "users/roles/{$role}"; // Utilisez 'roles' comme sous-collection sous 'users'
-
-    //     // Données utilisateur
-    //     $data = [
-    //         'userId' => $userId,
-    //         // Ajoutez d'autres données utilisateur si nécessaire, comme le nom, l'email, etc.
-    //     ];
-
-    //     // Vérifiez et ajoutez l'utilisateur à la sous-collection de son rôle
-    //     app('firebase.firestore')->collection($roleCollectionPath)->document($userId)->set($data);
-    // }
-
 }

@@ -84,21 +84,5 @@ class UserFirebaseRepository implements UserFirebaseRepositoryInterface
     }
 
 
-    public function filterByRole(string $role)
-    {
-        $reference = $this->firestore->database()->collection('users')
-            ->where('role', '=', $role);
-        
-        $documents = $reference->documents();
-        $users = [];
-
-        foreach ($documents as $document) {
-            if ($document->exists()) {
-                $users[] = array_merge(['id' => $document->id()], $document->data());
-            }
-        }
-
-        return $users;
-    }
 
 }

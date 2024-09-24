@@ -22,10 +22,6 @@ class AppServiceProvider extends ServiceProvider
             return Firebase::database();
         });
 
-        $this->app->singleton('firebase', function($app) {
-            return new FirebaseFirestoreService();
-        });
-        $this->app->singleton(FirebaseRepositoryInterface::class, FirebaseRepository::class);
         
         $this->app->singleton(UserRepositoryInterface::class, UserRepository::class);
     

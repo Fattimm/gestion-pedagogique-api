@@ -56,23 +56,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/promotions', [PromoController::class, 'store']);
     Route::get('/promotions', [PromoController::class, 'index']);
     Route::patch('/promotions/{id}', [PromoController::class, 'update']);
-
-    // Récupérer la promotion en cours
     Route::get('/promotions/encours', [PromoController::class, 'getCurrentPromo']);
-
-    // Gérer les référentiels d'une promotion
     Route::patch('/promotions/{id}/referentiels', [PromoController::class, 'updateReferentiels']);
-
-    // Changer l'état d'une promotion
     Route::patch('/promotions/{id}/etat', [PromoController::class, 'updateStatus']);
-
-    // Obtenir les statistiques d'une promotion
     Route::get('/promotions/{id}/stats', [PromoController::class, 'getStats']);
-
-    // Clôturer une promotion
     Route::patch('/promotions/{id}/cloturer', [PromoController::class, 'closePromo']);
-
-    // Lister les référentiels actifs d'une promotion
     Route::get('/promotions/{id}/referentiels', [PromoController::class, 'getReferentiels']);
 
 });

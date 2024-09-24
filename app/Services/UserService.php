@@ -69,34 +69,18 @@ class UserService implements UserServiceInterface
         }
     }
 
-    public function updateUser(string $id, array $data)
+    public function updateUser($id, $data)
     {
-        DB::beginTransaction();
-
-        try {
-            // Vérifier si un mot de passe est fourni et le hacher
-            if (isset($data['password'])) {
-                $data['password'] = Hash::make($data['password']);
-            }
-
-            // Mettre à jour l'utilisateur local
-            $user = $this->userRepository->update($id, $data);
-
-            DB::commit();
-
-            return [
-                'status' => 200,
-                'data' => $user,
-                'message' => 'Utilisateur mis à jour avec succès dans la base locale'
-            ];
-        } catch (Exception $e) {
-            DB::rollBack();
-            return [
-                'status' => 500,
-                'message' => 'Erreur lors de la mise à jour de l\'utilisateur : ' . $e->getMessage()
-            ];
-        }
+        $user = User::findOrFail($id);
+        $user->update($data);
+        
+        return [
+            'status' => 200,
+            'data' => $user,
+            'message' => 'Utilisateur mis à jour avec succès dans la base locale'
+        ];
     }
+
 
     public function deleteUser(string $id)
     {

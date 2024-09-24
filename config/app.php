@@ -173,6 +173,7 @@ return [
         App\Providers\UserServiceProvider::class,
         App\Providers\FirebaseServiceProvider::class,
         App\Providers\PromoServiceProvider::class,
+        App\Providers\ReferentielProvider::class,
 
 
 

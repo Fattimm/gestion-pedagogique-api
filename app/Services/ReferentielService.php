@@ -1,22 +1,212 @@
 <?php
 
-// namespace App\Services;
+namespace App\Services;
 
-// use App\Models\Referentiel;
-// use App\Enums\StatutReferentiel;
+use Exception;
+use App\Models\Referentiel;
+use App\Enums\StatutReferentiel;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Collection;
+use App\Services\Interfaces\ReferentielServiceInterface;
+use App\Repositories\Interfaces\ReferentielRepositoryInterface;
 
-// class ReferentielService
-// {
-//     public function listerReferentielsActifs()
-//     {
-//         return Referentiel::where('statut', StatutReferentiel::ACTIF->value)->get();
-//     }
+class ReferentielService implements ReferentielServiceInterface
+{
+    protected $repository;
+    protected $uploadService;
+    protected $firestore;
+    protected $firebaseCollection = 'referentiels';
 
-//     public function creerReferentiel(array $data)
-//     {
-//         // Validez le code et le libelle pour l'unicité ici...
-//         return Referentiel::create($data);
-//     }
 
-//     // Ajoutez d'autres méthodes pour modifier, supprimer, et filtrer...
-// }
+    public function __construct(ReferentielRepositoryInterface $repository, UploadPhotoFirebaseService $uploadService)
+    {
+        $this->repository = $repository;
+        $this->uploadService = $uploadService;
+        $this->firestore = app('firebase.firestore')->database(); // Initialisation de Firestore
+
+    }
+
+    private function validateData(array $data)
+    {
+        $requiredFields = ['code', 'libelle', 'description'];
+        foreach ($requiredFields as $field) {
+            if (empty($data[$field])) {
+                Log::warning("Champ requis manquant : $field");
+                throw new \InvalidArgumentException("Le champ $field est requis.");
+            }
+        }
+    }
+
+    public function create(array $data): Referentiel
+    {
+        // Valider les données
+        $this->validateData($data);
+
+        DB::beginTransaction();
+        try {
+            Log::info('Début de la création du référentiel');
+
+            // Vérifiez l'unicité du code et du libellé
+            if ($this->repository->findByCodeOrLibelle($data['code'], $data['libelle'])) {
+                throw new Exception('Le code ou le libellé existe déjà.');
+            }
+
+            // Gestion du fichier photo
+            if (isset($data['photo']) && $data['photo'] instanceof \Illuminate\Http\UploadedFile) {
+                $path = $data['photo']->store('referentiels/photos', 'public');
+                $data['photo'] = asset("storage/{$path}");
+            }
+
+            // Créer le référentiel dans le repository
+            $referentiel = $this->repository->create($data);
+
+            // Ajouter les compétences par type
+            if (!empty($data['types'])) {
+                foreach ($data['types'] as $type => $competences) {
+                    foreach ($competences as $competenceData) {
+                        $this->repository->addCompetence($referentiel->getId(), $type, $competenceData);
+                    }
+                }
+            }
+
+            DB::commit();
+            return $referentiel;
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Erreur lors de la création du référentiel : ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+
+    public function all(): Collection
+    {
+        Log::info('Récupération de tous les référentiels depuis Firestore');
+
+        // Assurez-vous que vous avez initialisé Firestore correctement
+        $snapshot = $this->repository->getAllFromFirestore(); // Si vous avez une méthode dédiée dans le repository
+        $referentiels = new Collection();
+
+        foreach ($snapshot as $document) {
+            if ($document->exists()) {
+                $data = $document->data();
+                $referentiel = new Referentiel($data);
+                $referentiel->setId($document->id());
+                $referentiels->push($referentiel);
+            }
+        }
+
+        Log::info('Nombre de référentiels récupérés : ' . $referentiels->count());
+
+        return $referentiels;
+    }
+
+
+    public function softDelete($id)
+    {
+        try {
+            Log::info('Début de la suppression logique du référentiel', ['id' => $id]);
+            $this->repository->softDelete($id);
+            Log::info('Fin de la suppression logique du référentiel', ['id' => $id]);
+        } catch (Exception $e) {
+            Log::error('Erreur lors de la suppression logique du référentiel : ' . $e->getMessage(), [
+                'exception' => $e,
+                'id' => $id
+            ]);
+            throw $e;
+        }
+    }
+
+
+
+    public function getAllReferentiel()
+    {
+        return $this->repository->all();
+    }
+
+    public function getReferentiel($id)
+    {
+        return $this->repository->find($id);
+    }
+
+    public function getReferentielsByStatut($etat): Collection
+    {
+        Log::info('Récupération des référentiels avec statut : ' . $etat);
+        return $this->repository->findByStatut($etat);
+    }
+
+
+    public function getCompetences($referentielId): array
+    {
+        return $this->repository->getCompetences($referentielId);
+    }
+
+    public function getModules($referentielId, $competenceId): array
+    {
+        return $this->repository->getModules($referentielId, $competenceId);
+    }
+
+    public function getArchivedReferentiels(): Collection
+    {
+        // Récupération des référentiels ayant le statut "archivé"
+        return $this->repository->findByStatut('archivé');
+    }
+
+
+    public function updateReferentiel(string $id, array $data): Referentiel
+{
+    DB::beginTransaction();
+    try {
+        Log::info("Updating referentiel with ID: $id");
+
+        // Récupérer le référentiel depuis Firestore
+        $referentiel = $this->repository->find($id);
+        if (!$referentiel) {
+            throw new Exception("Referentiel not found.");
+        }
+
+        // Mettre à jour le référentiel (document principal)
+        $this->repository->update($id, $data);
+
+        // Ajouter les compétences et leurs modules
+        if (!empty($data['competences'])) {
+            foreach ($data['competences'] as $competenceData) {
+                $type = $competenceData['type'] ?? 'default_type';
+
+                // Ajout ou mise à jour de la compétence
+                $competenceId = $this->repository->addCompetence($id, $type, $competenceData);
+
+                // Ajouter ou mettre à jour les modules
+                if (!empty($competenceData['modules'])) {
+                    foreach ($competenceData['modules'] as $moduleData) {
+                        $this->repository->addModule($id, $type, $competenceId, $moduleData);
+                    }
+                }
+            }
+        }
+
+        // Suppression logique des compétences
+        if (!empty($data['removed_competences'])) {
+            foreach ($data['removed_competences'] as $competenceId) {
+                $this->repository->softDeleteCompetence($id, $competenceId);
+            }
+        }
+
+        // Suppression logique des modules
+        if (!empty($data['removed_modules'])) {
+            foreach ($data['removed_modules'] as $moduleData) {
+                $this->repository->softDeleteModule($id, $moduleData['competence_id'], $moduleData['module_id']);
+            }
+        }
+
+        DB::commit();
+        return $referentiel;
+    } catch (Exception $e) {
+        DB::rollBack();
+        Log::error('Error updating referentiel: ' . $e->getMessage());
+        throw $e;
+    }
+}
+
+}

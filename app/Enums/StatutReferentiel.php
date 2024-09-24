@@ -4,7 +4,7 @@ namespace App\Enums;
 
 enum StatutReferentiel: string
 {
-    case ACTIF = 'Actif';
-    case INACTIF = 'Inactif';
-    case ARCHIVER = 'Archiver';
+    case ACTIF = 'actif';
+    case INACTIF = 'inactif';
+    case ARCHIVER = 'archiver';
 }

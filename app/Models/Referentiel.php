@@ -14,9 +14,11 @@ class Referentiel extends FirebaseModel
         'code',
         'libelle',
         'description',
-        'photo',
+        'photo', 
+        'competenses',
         'statut',
-        'competences' 
+        'is_deleted',
+
     ];
 
     protected $firebaseCollection = 'referentiels';
@@ -24,7 +26,7 @@ class Referentiel extends FirebaseModel
     protected $casts = [
         'statut' => 'string',
     ];
-
+    
 
     public function promo()
     {
@@ -35,4 +37,6 @@ class Referentiel extends FirebaseModel
     {
         return $this->hasMany(User::class)->where('role', 'apprenant');
     }
+
+    
 }

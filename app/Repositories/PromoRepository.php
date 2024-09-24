@@ -81,9 +81,6 @@ class PromoRepository implements PromoRepositoryInterface
 
         return $users;
     }
-    
-
-
 
 
     public function getCurrentPromo(): ?Promo
@@ -176,4 +173,6 @@ class PromoRepository implements PromoRepositoryInterface
         }
         return $promo->referentiels;
     }
+
+    
 }

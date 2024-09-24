@@ -37,4 +37,6 @@ class UploadPhotoFirebaseService
             throw new \Exception('Erreur lors de l\'upload de la photo : ' . $e->getMessage());
         }
     }
+
+    
 }
