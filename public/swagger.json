@@ -1,13 +1,13 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "API de gestion de dettes",
+    "title": "API de gestion pédagogique",
     "version": "1.0.0",
     "description": "API pour la gestion pédagogique"
   },
   "servers": [
     {
-      "url": "http://localhost:3000",
+      "url": "http://localhost:3000/api/v1",
       "description": "Serveur Local"
     }
   ],
@@ -220,10 +220,202 @@
         }
       }
     },
+    "/referentiels": {
+      "get": {
+        "summary": "Récupérer tous les référentiels",
+        "tags": ["Referentiel"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des référentiels récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Referentiel"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Créer un nouveau référentiel",
+        "tags": ["Referentiel"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Referentiel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Référentiel créé avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Referentiel"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/referentiels/{id}": {
+      "get": {
+        "summary": "Récupérer un référentiel par ID",
+        "tags": ["Referentiel"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Détails du référentiel récupérés",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Referentiel"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Référentiel non trouvé"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Mettre à jour un référentiel par ID",
+        "tags": ["Referentiel"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Referentiel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Référentiel mis à jour avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Referentiel"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Supprimer un référentiel par ID",
+        "tags": ["Referentiel"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Référentiel supprimé avec succès"
+          },
+          "404": {
+            "description": "Référentiel non trouvé"
+          }
+        }
+      }
+    },
+    "/archive/referentiels": {
+      "get": {
+        "summary": "Récupérer les référentiels archivés",
+        "tags": ["Referentiel"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des référentiels archivés récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Referentiel"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/promotions": {
       "get": {
         "summary": "Récupérer toutes les promotions",
         "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Liste des promotions récupérée avec succès",
@@ -243,6 +435,11 @@
       "post": {
         "summary": "Créer une nouvelle promotion",
         "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -263,6 +460,249 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/promotions/{id}": {
+      "patch": {
+        "summary": "Mettre à jour une promotion par ID",
+        "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Promotion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Promotion mise à jour avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Promotion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/promotions/encours": {
+      "get": {
+        "summary": "Récupérer les promotions en cours",
+        "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des promotions en cours récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Promotion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/promotions/{id}/referentiels": {
+      "patch": {
+        "summary": "Mettre à jour les référentiels d'une promotion",
+        "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Référentiels de la promotion mis à jour avec succès"
+          }
+        }
+      },
+      "get": {
+        "summary": "Récupérer les référentiels d'une promotion",
+        "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Liste des référentiels de la promotion récupérée avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Referentiel"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/promotions/{id}/etat": {
+      "patch": {
+        "summary": "Mettre à jour l'état d'une promotion",
+        "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "etat": {
+                    "type": "string",
+                    "enum": ["en cours", "terminée", "annulée"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "État de la promotion mis à jour avec succès"
+          }
+        }
+      }
+    },
+    "/promotions/{id}/stats": {
+      "get": {
+        "summary": "Récupérer les statistiques d'une promotion",
+        "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Statistiques de la promotion récupérées avec succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionStats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/promotions/{id}/cloturer": {
+      "patch": {
+        "summary": "Clôturer une promotion",
+        "tags": ["Promotion"],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Promotion clôturée avec succès"
           }
         }
       }
@@ -321,6 +761,28 @@
           }
         }
       },
+      "Referentiel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "libelle": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "Promotion": {
         "type": "object",
         "properties": {
@@ -342,10 +804,32 @@
             "type": "integer"
           },
           "etat": {
-            "type": "string"
+            "type": "string",
+            "enum": ["en cours", "terminée", "annulée"]
           },
           "photo_couverture": {
             "type": "string"
+          },
+          "referentiels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Referentiel"
+            }
+          }
+        }
+      },
+      "PromotionStats": {
+        "type": "object",
+        "properties": {
+          "nombre_etudiants": {
+            "type": "integer"
+          },
+          "taux_reussite": {
+            "type": "number",
+            "format": "float"
+          },
+          "nombre_referentiels": {
+            "type": "integer"
           }
         }
       }
@@ -357,3 +841,4 @@
     }
   ]
 }
+  
