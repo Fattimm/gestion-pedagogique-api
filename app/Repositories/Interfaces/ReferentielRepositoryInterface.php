@@ -22,4 +22,6 @@ interface ReferentielRepositoryInterface
     public function update(string $id, array $data): void;
     public function softDeleteCompetence(string $referentielId, string $competenceId): void;
     public function softDeleteModule(string $referentielId, string $competenceId, string $moduleId): void;
+    public function getCompetencesByReferentielId($referentId);
+
 }

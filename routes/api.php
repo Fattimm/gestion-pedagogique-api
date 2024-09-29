@@ -1,11 +1,14 @@
 <?php
 
+use App\Models\User;
+use App\Models\Referentiel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\ReferentielController;
+use App\Http\Controllers\AuthControllerFirebase;
 use Laravel\Passport\Http\Controllers\ScopeController;
 use Laravel\Passport\Http\Controllers\AccessTokenController;
 use Laravel\Passport\Http\Controllers\AuthorizationController;
@@ -31,8 +34,13 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+Route::middleware('auth:api')->group(function () {
+
+});
+
 
 Route::prefix('v1')->group(function () {
+
 
     Route::post('/login', [AuthController::class, 'login']);
     Route::get('/logout', [AuthController::class, 'logout']);
@@ -64,8 +72,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/promotions/{id}/referentiels', [PromoController::class, 'getReferentiels']);
 
 });
-
-
 
 
 

@@ -71,7 +71,7 @@ class PromoRepository implements PromoRepositoryInterface
     public function all(array $filters = [])
     {
         $snapshot = $this->firestore->collection($this->collection)->documents();
-        
+
         $users = [];
         foreach ($snapshot as $document) {
             if ($document->exists()) {
@@ -174,5 +174,51 @@ class PromoRepository implements PromoRepositoryInterface
         return $promo->referentiels;
     }
 
-    
+    public function existsByLibelle($libelle)
+    {
+        $firestore = app('firebase.firestore')->database();
+        $promosCollection = $firestore->collection('promotions');
+
+        $query = $promosCollection->where('libelle', '=', $libelle)->limit(1)->documents();
+        return $query->isEmpty() ? false : true; // retourne true si la promo existe
+    }
+
+    public function addReferentielToPromo($promoRef, $referentielData)
+    {
+        // Ajoutez le référentiel à la collection de référentiels de la promotion
+        $promoRef->collection('Référentiels')->add($referentielData);
+    }
+
+    public function addApprenantToReferentiel($referentielRef, $apprenantData)
+    {
+        // Ajoutez l'apprenant à la collection d'apprenants du référentiel
+        $referentielRef->collection('Apprenants')->add($apprenantData);
+    }
+
+    public function addCompetenceToReferentiel($referentielRef, $competenceData, $type)
+    {
+        // Ajoutez la compétence à la collection Back ou Front du référentiel
+        $referentielRef->collection($type)->add($competenceData);
+    }
+
+    public function addModuleToCompetence($competenceRef, $moduleData)
+    {
+        // Ajoutez le module à la collection de modules de la compétence
+        $competenceRef->collection('Modules')->add($moduleData);
+    }
+
+    public function getLastPromo()
+    {
+        $snapshot = $this->firestore->collection($this->collection)
+            ->orderBy('id', 'desc')
+            ->limit(1)
+            ->documents();
+
+        if ($snapshot->isEmpty()) {
+            return null;
+        }
+
+        $promoDocument = $snapshot->rows()[0];
+        return new Promo($promoDocument->data() + ['id' => $promoDocument->id()]);
+    }
 }

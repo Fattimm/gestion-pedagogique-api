@@ -110,32 +110,32 @@ class ReferentielRepository implements ReferentielRepositoryInterface
 
 
     public function addCompetence($referentielId, $type, array $competenceData)
-{
-    // Référence à la collection des compétences pour un référentiel spécifique
-    $competenceRef = $this->firestore->collection('referentiels')->document($referentielId)
-                                       ->collection('competences');
+    {
+        // Référence à la collection des compétences pour un référentiel spécifique
+        $competenceRef = $this->firestore->collection('referentiels')->document($referentielId)
+            ->collection('competences');
 
-    // Ajouter une compétence
-    $competenceRef->add([
-        'type' => $type,
-        'data' => $competenceData
-    ]);
-}
+        // Ajouter une compétence
+        $competenceRef->add([
+            'type' => $type,
+            'data' => $competenceData
+        ]);
+    }
 
 
-public function addModule($referentielId, $type, $competenceId, array $moduleData)
-{
-    // Référence à la collection des modules pour une compétence donnée
-    $moduleRef = $this->firestore->collection('referentiels')->document($referentielId)
-                                   ->collection('competences')->document($competenceId)
-                                   ->collection('modules');
+    public function addModule($referentielId, $type, $competenceId, array $moduleData)
+    {
+        // Référence à la collection des modules pour une compétence donnée
+        $moduleRef = $this->firestore->collection('referentiels')->document($referentielId)
+            ->collection('competences')->document($competenceId)
+            ->collection('modules');
 
-    // Ajouter un module
-    $moduleRef->add([
-        'type' => $type,
-        'data' => $moduleData
-    ]);
-}
+        // Ajouter un module
+        $moduleRef->add([
+            'type' => $type,
+            'data' => $moduleData
+        ]);
+    }
 
 
 
@@ -193,6 +193,7 @@ public function addModule($referentielId, $type, $competenceId, array $moduleDat
         return $moduleCollection; // Retourner un tableau de modules
     }
 
+
     public function getId()
     {
         return $this->firestore->collection($this->firebaseCollection)->document()->id();
@@ -200,79 +201,98 @@ public function addModule($referentielId, $type, $competenceId, array $moduleDat
 
 
     public function softDelete($id)
-{
-    $document = $this->firestore->collection($this->firebaseCollection)->document($id)->snapshot();
+    {
+        $document = $this->firestore->collection($this->firebaseCollection)->document($id)->snapshot();
 
-    if ($document->exists()) {
-        // Assuming you have a 'deleted' field to mark the document as deleted
-        $this->firestore->collection($this->firebaseCollection)->document($id)->update([
+        if ($document->exists()) {
+            // Assuming you have a 'deleted' field to mark the document as deleted
+            $this->firestore->collection($this->firebaseCollection)->document($id)->update([
+                ['path' => 'deleted', 'value' => true]
+            ]);
+            Log::info('Référentiel marqué comme supprimé : ', ['id' => $id]);
+        } else {
+            Log::warning('Tentative de suppression d\'un référentiel inexistant : ', ['id' => $id]);
+            throw new Exception('Le référentiel n\'existe pas.');
+        }
+    }
+
+//     public function softDelete($referentielId)
+// {
+//     $referentiel = $this->find($referentielId);
+//     if ($referentiel) {
+//         // Mettez à jour le champ 'deleted_at' pour le soft delete
+//         $referentiel->deleted_at = now();
+//         return $referentiel->save();
+//     }
+//     return false;
+// }
+
+
+
+    public function isReferentielInPromotion($referentielId): bool
+    {
+        // Implement the logic to query your promotions collection
+        // Example query:
+        $snapshot = $this->firestore->collection('promotions')->where('referentielId', '=', $referentielId)->documents();
+
+        return $snapshot->isEmpty(); // Return true if it is not in use, false otherwise
+    }
+
+
+    public function update(string $id, array $data): void
+    {
+        $document = $this->firestore->collection($this->firebaseCollection)->document($id);
+
+        // Firestore utilise une structure de tableau pour les mises à jour
+        $updateData = [];
+        foreach ($data as $key => $value) {
+            $updateData[] = ['path' => $key, 'value' => $value];
+        }
+
+        $document->update($updateData);
+    }
+
+
+
+
+    public function softDeleteCompetence(string $referentielId, string $competenceId): void
+    {
+        $competenceRef = $this->firestore->collection($this->firebaseCollection)
+            ->document($referentielId)
+            ->collection('competences')
+            ->document($competenceId);
+
+        $competenceRef->update([
             ['path' => 'deleted', 'value' => true]
         ]);
-        Log::info('Référentiel marqué comme supprimé : ', ['id' => $id]);
-    } else {
-        Log::warning('Tentative de suppression d\'un référentiel inexistant : ', ['id' => $id]);
-        throw new Exception('Le référentiel n\'existe pas.');
-    }
-}
 
-
-public function isReferentielInPromotion($referentielId): bool
-{
-    // Implement the logic to query your promotions collection
-    // Example query:
-    $snapshot = $this->firestore->collection('promotions')->where('referentielId', '=', $referentielId)->documents();
-    
-    return $snapshot->isEmpty(); // Return true if it is not in use, false otherwise
-}
-
-
-public function update(string $id, array $data): void
-{
-    $document = $this->firestore->collection($this->firebaseCollection)->document($id);
-
-    // Firestore utilise une structure de tableau pour les mises à jour
-    $updateData = [];
-    foreach ($data as $key => $value) {
-        $updateData[] = ['path' => $key, 'value' => $value];
+        Log::info("Competence soft deleted: $competenceId");
     }
 
-    $document->update($updateData);
-}
 
+    public function softDeleteModule(string $referentielId, string $competenceId, string $moduleId): void
+    {
+        $moduleRef = $this->firestore->collection($this->firebaseCollection)
+            ->document($referentielId)
+            ->collection('competences')
+            ->document($competenceId)
+            ->collection('modules')
+            ->document($moduleId);
 
+        $moduleRef->update([
+            ['path' => 'deleted', 'value' => true]
+        ]);
 
+        Log::info("Module soft deleted: $moduleId");
+    }
 
-public function softDeleteCompetence(string $referentielId, string $competenceId): void
-{
-    $competenceRef = $this->firestore->collection($this->firebaseCollection)
-        ->document($referentielId)
-        ->collection('competences')
-        ->document($competenceId);
-
-    $competenceRef->update([
-        ['path' => 'deleted', 'value' => true]
-    ]);
-
-    Log::info("Competence soft deleted: $competenceId");
-}
-
-
-public function softDeleteModule(string $referentielId, string $competenceId, string $moduleId): void
-{
-    $moduleRef = $this->firestore->collection($this->firebaseCollection)
-        ->document($referentielId)
-        ->collection('competences')
-        ->document($competenceId)
-        ->collection('modules')
-        ->document($moduleId);
-
-    $moduleRef->update([
-        ['path' => 'deleted', 'value' => true]
-    ]);
-
-    Log::info("Module soft deleted: $moduleId");
-}
-
-
-
+    public function getCompetencesByReferentielId($referentielId)
+    {
+        $referentiel = $this->firestore->collection('referentiels')->document($referentielId)->snapshot();
+        if ($referentiel->exists()) {
+            $data = $referentiel->data();
+            return $data['competences'] ?? [];
+        }
+        return [];
+    }
 }

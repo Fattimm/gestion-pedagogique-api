@@ -39,6 +39,10 @@ class UserFirebaseService implements UserFirebaseServiceInterface
             // Tenter de créer l'utilisateur
             $userId = $this->userRepository->store($userData);
 
+            // Ajouter l'utilisateur dans la collection selon son rôle
+            $role = $userData['role']; // Assurez-vous que le rôle est inclus dans les données utilisateur
+            $this->addUserToRoleDocument($role, $userId, $userData);
+
             return [
                 'status' => 201,
                 'data' => $userId,
@@ -63,12 +67,25 @@ class UserFirebaseService implements UserFirebaseServiceInterface
         }
     }
 
+    private function addUserToRoleDocument($role, $userId, array $userData)
+    {
+        $firestore = app('firebase.firestore')->database(); // Assurez-vous que vous avez configuré le Firestore correctement
+
+        // Vérifiez si le document de rôle existe déjà dans la collection 'users'
+        $roleDocument = $firestore->collection('users')->document($role);
+
+        // Ajouter l'utilisateur directement comme document dans le document de rôle
+        $roleDocument->set([$userId => $userData], ['merge' => true]); // Utilisez 'merge' pour ne pas écraser le document de rôle
+    }
+
+
+
     public function listUsers(array $filters = [])
     {
         return $this->userRepository->all($filters);
     }
 
-    
+
 
     public function updateUser(string $id, array $data)
     {

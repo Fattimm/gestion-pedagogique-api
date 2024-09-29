@@ -40,35 +40,96 @@ class ReferentielService implements ReferentielServiceInterface
 
     public function create(array $data): Referentiel
     {
-        // Valider les données
+        // Validate the incoming data
         $this->validateData($data);
 
         DB::beginTransaction();
         try {
             Log::info('Début de la création du référentiel');
 
-            // Vérifiez l'unicité du code et du libellé
+            // Check for uniqueness of code and libelle
             if ($this->repository->findByCodeOrLibelle($data['code'], $data['libelle'])) {
                 throw new Exception('Le code ou le libellé existe déjà.');
             }
 
-            // Gestion du fichier photo
+            // Handle photo file
+            $photoUrl = null; // Initialiser l'URL de la photo
+
             if (isset($data['photo']) && $data['photo'] instanceof \Illuminate\Http\UploadedFile) {
+                // Stocker la photo localement
                 $path = $data['photo']->store('referentiels/photos', 'public');
+
+                // Upload la photo sur Firebase
+                $photoUrl = $this->uploadService->uploadPhoto($data['photo'], 'referentiels/photos', 'referentiel', $data['libelle']);
+
+                // Mettre à jour le chemin d'accès de la photo dans les données
                 $data['photo'] = asset("storage/{$path}");
             }
 
-            // Créer le référentiel dans le repository
+            // Create the referentiel in the repository
             $referentiel = $this->repository->create($data);
 
-            // Ajouter les compétences par type
-            if (!empty($data['types'])) {
-                foreach ($data['types'] as $type => $competences) {
-                    foreach ($competences as $competenceData) {
-                        $this->repository->addCompetence($referentiel->getId(), $type, $competenceData);
+            // Prepare data structure for Firestore
+            $firestoreData = [
+                'libelle' => $referentiel->libelle,
+                'description' => $referentiel->description,
+                'code' => $referentiel->code,
+                'photo' => $referentiel->photo,
+                'statut' => 'inactif',
+                'competences' => []
+            ];
+
+            // Decode the 'types' JSON string into an array
+            $types = json_decode($data['types'], true);
+
+            // Check if decoding was successful
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new Exception('Erreur de décodage JSON pour les types: ' . json_last_error_msg());
+            }
+
+            // Iterate through the types (Backend, Frontend, etc.)
+            foreach ($types as $type => $competences) {
+                $competenceDataList = [];
+                foreach ($competences as $competenceData) {
+                    // Create competence
+                    $competenceId = $this->repository->addCompetence($referentiel->getId(), $type, $competenceData);
+                    $competenceDataList[] = [
+                        'id' => $competenceId,
+                        'nom' => $competenceData['nom'],
+                        'description' => $competenceData['description'],
+                        'duree_aquisition' => $competenceData['duree_aquisition'],
+                        'modules' => [] // Initialize an empty list for modules
+                    ];
+
+                    // Add associated modules to the competence
+                    if (!empty($competenceData['modules'])) {
+                        foreach ($competenceData['modules'] as $moduleData) {
+                            // Call addModule with the correct parameters
+                            $moduleId = $this->repository->addModule(
+                                $referentiel->getId(),  // The ID of the referentiel
+                                $type,                  // The type of competence
+                                $competenceId,         // The competence ID
+                                $moduleData            // The module data
+                            );
+
+                            // Add module information to the last competence in the list
+                            $competenceDataList[count($competenceDataList) - 1]['modules'][] = [
+                                'id' => $moduleId,
+                                'nom' => $moduleData['nom'],
+                                'description' => $moduleData['description'],
+                                'duree_aquisition' => $moduleData['duree_aquisition'],
+                            ];
+                        }
                     }
                 }
+
+                // Add the competence data to the firestore data
+                $firestoreData['competences'][$type] = $competenceDataList;
             }
+
+            // Use a valid document name in Firestore (avoiding slashes)
+            $documentName = preg_replace('/[\/\\\]/', '_', $referentiel->libelle);
+            $this->firestore->collection($this->firebaseCollection)->document($documentName)->set($firestoreData);
 
             DB::commit();
             return $referentiel;
@@ -155,58 +216,57 @@ class ReferentielService implements ReferentielServiceInterface
 
 
     public function updateReferentiel(string $id, array $data): Referentiel
-{
-    DB::beginTransaction();
-    try {
-        Log::info("Updating referentiel with ID: $id");
+    {
+        DB::beginTransaction();
+        try {
+            Log::info("Updating referentiel with ID: $id");
 
-        // Récupérer le référentiel depuis Firestore
-        $referentiel = $this->repository->find($id);
-        if (!$referentiel) {
-            throw new Exception("Referentiel not found.");
-        }
+            // Récupérer le référentiel depuis Firestore
+            $referentiel = $this->repository->find($id);
+            if (!$referentiel) {
+                throw new Exception("Referentiel not found.");
+            }
 
-        // Mettre à jour le référentiel (document principal)
-        $this->repository->update($id, $data);
+            // Mettre à jour le référentiel (document principal)
+            $this->repository->update($id, $data);
 
-        // Ajouter les compétences et leurs modules
-        if (!empty($data['competences'])) {
-            foreach ($data['competences'] as $competenceData) {
-                $type = $competenceData['type'] ?? 'default_type';
+            // Ajouter les compétences et leurs modules
+            if (!empty($data['competences'])) {
+                foreach ($data['competences'] as $competenceData) {
+                    $type = $competenceData['type'] ?? 'default_type';
 
-                // Ajout ou mise à jour de la compétence
-                $competenceId = $this->repository->addCompetence($id, $type, $competenceData);
+                    // Ajout ou mise à jour de la compétence
+                    $competenceId = $this->repository->addCompetence($id, $type, $competenceData);
 
-                // Ajouter ou mettre à jour les modules
-                if (!empty($competenceData['modules'])) {
-                    foreach ($competenceData['modules'] as $moduleData) {
-                        $this->repository->addModule($id, $type, $competenceId, $moduleData);
+                    // Ajouter ou mettre à jour les modules
+                    if (!empty($competenceData['modules'])) {
+                        foreach ($competenceData['modules'] as $moduleData) {
+                            $this->repository->addModule($id, $type, $competenceId, $moduleData);
+                        }
                     }
                 }
             }
-        }
 
-        // Suppression logique des compétences
-        if (!empty($data['removed_competences'])) {
-            foreach ($data['removed_competences'] as $competenceId) {
-                $this->repository->softDeleteCompetence($id, $competenceId);
+            // Suppression logique des compétences
+            if (!empty($data['removed_competences'])) {
+                foreach ($data['removed_competences'] as $competenceId) {
+                    $this->repository->softDeleteCompetence($id, $competenceId);
+                }
             }
-        }
 
-        // Suppression logique des modules
-        if (!empty($data['removed_modules'])) {
-            foreach ($data['removed_modules'] as $moduleData) {
-                $this->repository->softDeleteModule($id, $moduleData['competence_id'], $moduleData['module_id']);
+            // Suppression logique des modules
+            if (!empty($data['removed_modules'])) {
+                foreach ($data['removed_modules'] as $moduleData) {
+                    $this->repository->softDeleteModule($id, $moduleData['competence_id'], $moduleData['module_id']);
+                }
             }
-        }
 
-        DB::commit();
-        return $referentiel;
-    } catch (Exception $e) {
-        DB::rollBack();
-        Log::error('Error updating referentiel: ' . $e->getMessage());
-        throw $e;
+            DB::commit();
+            return $referentiel;
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Error updating referentiel: ' . $e->getMessage());
+            throw $e;
+        }
     }
-}
-
 }

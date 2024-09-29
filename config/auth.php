@@ -1,6 +1,8 @@
 <?php
 
 return [
+    
+    // 'method' => env('AUTH_METHOD', 'passport'),
 
     /*
     |--------------------------------------------------------------------------
@@ -38,6 +40,10 @@ return [
     'guards' => [
         'web' => [
             'driver' => 'session',
+            'provider' => 'users',
+        ],
+        'api' => [
+            'driver' => 'passport',
             'provider' => 'users',
         ],
     ],

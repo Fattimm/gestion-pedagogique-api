@@ -5,118 +5,400 @@ namespace App\Services;
 use Exception;
 use App\Models\Promo;
 use App\Enums\PromoStatus;
-use Illuminate\Http\UploadedFile;
-use App\Repositories\PromoRepository;
-use App\Services\Interfaces\PromoServiceInterface;
 use Illuminate\Support\Str;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
+use App\Repositories\PromoRepository;
+use App\Repositories\ReferentielRepository;
+use App\Services\Interfaces\PromoServiceInterface;
 
 
 class PromoService implements PromoServiceInterface
 {
     protected $promoRepository;
     protected $uploadService;
+    protected $repository;
 
-    public function __construct(PromoRepository $promoRepository, UploadPhotoFirebaseService $uploadService)
+    public function __construct(PromoRepository $promoRepository, UploadPhotoFirebaseService $uploadService, ReferentielRepository $repository)
     {
         $this->promoRepository = $promoRepository;
         $this->uploadService = $uploadService;
+        $this->repository = $repository;
     }
+
 
     public function createPromo(array $data)
-{
-    // Initialize photo URL
-    $photoUrl = null;
+    {
+        // Initialize photo URL
+        $photoUrl = null;
 
-    // Upload the photo if provided
-    if (isset($data['photo_couverture']) && $data['photo_couverture'] instanceof UploadedFile) {
-        $uploadService = new UploadPhotoFirebaseService(app('firebase.storage'));
-        $photoUrl = $uploadService->uploadPhoto($data['photo_couverture']);
-        $data['photo_couverture'] = $photoUrl; // Add the URL to the data
-    }
-
-    // Generate a unique ID for the promotion
-    $data['id'] = Str::uuid()->toString();
-
-    // Create the promotion
-    try {
-        $promo = $this->promoRepository->create($data);
-
-        // If active referentiels are provided, assign them to the promotion
-        if (isset($data['referentiels']) && is_array($data['referentiels'])) {
-            $this->promoRepository->addReferentiels($promo, $data['referentiels']);
+        // Upload the photo if provided
+        if (isset($data['photo_couverture']) && $data['photo_couverture'] instanceof UploadedFile) {
+            $photoUrl = $this->uploadService->uploadPhoto(
+                $data['photo_couverture'],
+                'promotions',
+                'promotion',
+                $data['libelle']
+            );
+            $data['photo_couverture'] = $photoUrl;
         }
 
-        return [
-            'status' => 201,
-            'data' => $promo,
-            'message' => 'Promotion créée avec succès.'
-        ];
-    } catch (Exception $e) {
-        return [
-            'status' => 500,
-            'message' => 'Erreur lors de la création de la promotion : ' . $e->getMessage()
-        ];
-    }
-}
-
-
-public function updatePromo(array $data, string $id): array 
-{
-    // Vérifiez si une photo de couverture est fournie et téléchargez-la si c'est le cas
-    if (isset($data['photo_couverture']) && $data['photo_couverture'] instanceof UploadedFile) {
-        $uploadService = new UploadPhotoFirebaseService(app('firebase.storage'));
-        $photoUrl = $uploadService->uploadPhoto($data['photo_couverture']);
-        $data['photo_couverture'] = $photoUrl; // Mettez à jour l'URL de la photo
-    }
-    
-    try {
-        // Trouvez la promotion existante par ID dans Firestore
-        $promo = $this->promoRepository->find($id);
-        if (!$promo) {
+        // Validate required fields
+        if (empty($data['libelle'])) {
             return [
-                'status' => 404, 
-                'message' => 'Promotion not found.'
+                'status' => 400,
+                'message' => 'Le libellé est obligatoire.'
+            ];
+        }
+        // Ensure the ID (libelle) is unique
+        if ($this->promoExists($data['libelle'])) {
+            return [
+                'status' => 409,
+                'message' => 'Une promotion avec ce libellé existe déjà.'
             ];
         }
 
-        // Mettez à jour les propriétés de la promotion
-        foreach ($data as $key => $value) {
-            // Assurez-vous que la clé existe dans l'objet promo
-            if (property_exists($promo, $key)) {
-                $promo->$key = $value;
+        if (empty($data['date_debut']) || empty($data['date_fin'])) {
+            return [
+                'status' => 400,
+                'message' => 'Les dates de début et de fin sont obligatoires.'
+            ];
+        }
+
+
+        // Calculate duration in months
+        $dateDebut = new \DateTime($data['date_debut']);
+        $dateFin = new \DateTime($data['date_fin']);
+        $duration = $dateDebut->diff($dateFin)->m + ($dateDebut->diff($dateFin)->y * 12);
+        $data['duree'] = $duration . ' mois';
+
+        // **Retrieve the last existing ID and increment it**
+        $lastPromo = $this->promoRepository->getLastPromo();  // Assuming `getLastPromo()` is a method that returns the last promotion sorted by ID.
+
+        $newId = $lastPromo ? $lastPromo['id'] + 1 : 1;  // Start from 1 if no promotions exist
+        // Set the new ID in the data
+        $data['id'] = $newId;
+
+        // Set the initial state to "Inactif"
+        $data['etat'] = 'Inactif';
+
+        // Check for the referentiel IDs
+        $referentielIds = $data['referentiels'] ?? [];
+
+        // Ensure $referentielIds is an array
+        if (!is_array($referentielIds)) {
+            $referentielIds = [$referentielIds]; // Convertir en tableau si c'est une chaîne
+        }
+
+        // Validate the referentiels and prepare the mapping for competencies
+        $referentielsData = [];
+        foreach ($referentielIds as $referentielId) {
+            if (!$this->referentielExists($referentielId)) {
+                return [
+                    'status' => 404,
+                    'message' => "Le référentiel avec l'ID $referentielId n'existe pas."
+                ];
+            }
+
+            // Récupérer les données du référentiel
+            $referentielData = $this->repository->find($referentielId);
+            Log::info("Données du référentiel : " . json_encode($referentielData));
+
+            if ($referentielData) {
+                // Récupérer les compétences associées
+                $competences = $this->repository->getCompetencesByReferentielId($referentielId);
+                Log::info("Compétences récupérées : " . json_encode($competences));
+
+                // Vérifiez ici si les compétences sont récupérées correctement
+                if (empty($competences)) {
+                    Log::warning("Aucune compétence trouvée pour le référentiel ID: $referentielId");
+                }
+
+                // Transformer l'objet Référentiel en tableau associatif
+                $referentielArray = [
+                    'id' => $referentielData->getId(),
+                    'libelle' => $referentielData->libelle,
+                    'description' => $referentielData->description,
+                    'competences' => []
+                ];
+
+                // Structurer les compétences comme dans la méthode de création du référentiel
+                foreach ($competences as $type => $typeCompetences) {
+                    $competenceDataList = [];
+                    foreach ($typeCompetences as $competence) {
+                        $competenceData = [
+                            'id' => $competence['id'],
+                            'nom' => $competence['nom'],
+                            'description' => $competence['description'],
+                            'duree_aquisition' => $competence['duree_aquisition'],
+                            'modules' => $competence['modules'] ?? []
+                        ];
+                        $competenceDataList[] = $competenceData;
+                    }
+                    $referentielArray['competences'][$type] = $competenceDataList;
+                }
+
+                $referentielsData[] = $referentielArray;
             }
         }
 
-        // Convertir l'objet promo en tableau associatif
-        $promoData = json_decode(json_encode($promo), true);
+        // Create the promotion in Firestore
+        try {
+            $promoRef = $this->promoRepository->create([
+                'id' =>  $data['id'],
+                'libelle' => $data['libelle'],
+                'date_debut' => $data['date_debut'],
+                'date_fin' => $data['date_fin'],
+                'duree' => $data['duree'],
+                'etat' => $data['etat'],
+                'photo_couverture' => $photoUrl,
+                'referentiels' => $referentielsData
+            ]);
 
-        // Enregistrez les modifications dans Firestore
-        $this->promoRepository->update($promo, $promoData);
+            Log::info("Promotion créée avec succès : " . json_encode($promoRef));
+
+            return [
+                'status' => 201,
+                'data' => $promoRef,
+                'message' => 'Promotion créée avec succès.'
+            ];
+        } catch (Exception $e) {
+            Log::error('Erreur lors de la création de la promotion : ' . $e->getMessage());
+            return [
+                'status' => 500,
+                'message' => 'Erreur lors de la création de la promotion : ' . $e->getMessage()
+            ];
+        }
+    }
+
+
+    protected function promoExists($libelle)
+    {
+        // Vérifiez si la promotion existe dans la base de données
+        return $this->promoRepository->existsByLibelle($libelle);
+    }
+
+    // Méthode pour vérifier l'existence d'un référentiel
+    private function referentielExists($referentielId)
+    {
+        return $this->repository->find($referentielId) !== null;
+    }
+
+
+    public function updatePromo(array $data, string $id): array
+    {
+        try {
+            // Trouver la promotion existante par ID
+            $promo = $this->promoRepository->find($id);
+            if (!$promo) {
+                return [
+                    'status' => 404,
+                    'message' => 'Promotion non trouvée.'
+                ];
+            }
+
+            // Vérifier si une nouvelle photo de couverture est fournie
+            if (isset($data['photo_couverture']) && $data['photo_couverture'] instanceof UploadedFile) {
+                $libelle = isset($data['libelle']) ? $data['libelle'] : $promo->libelle;
+
+                // Téléchargement de la nouvelle photo
+                $photoUrl = $this->uploadService->uploadPhoto(
+                    $data['photo_couverture'],
+                    'promotions',
+                    'promotion',
+                    $libelle
+                );
+
+                // Remplacer l'ancienne photo
+                $promo->photo_couverture = $photoUrl;
+            }
+
+            // Mise à jour des autres champs (libelle, dates, etc.)
+            if (isset($data['libelle'])) {
+                if (!$this->promoExists($data['libelle'])) {
+                    $promo->libelle = $data['libelle'];
+                } else {
+                    return [
+                        'status' => 409,
+                        'message' => 'Une promotion avec ce libellé existe déjà.'
+                    ];
+                }
+            }
+
+            if (isset($data['date_debut'])) {
+                $promo->date_debut = $data['date_debut'];
+            }
+
+            if (isset($data['date_fin'])) {
+                $promo->date_fin = $data['date_fin'];
+
+                // Recalculer la durée si les deux dates sont disponibles
+                if ($promo->date_debut) {
+                    $dateDebut = new \DateTime($promo->date_debut);
+                    $dateFin = new \DateTime($promo->date_fin);
+                    $duration = $dateDebut->diff($dateFin)->m + ($dateDebut->diff($dateFin)->y * 12);
+                    $promo->duree = $duration . ' mois';
+                }
+            }
+
+            // Si des référentiels sont fournis, mettre à jour
+            if (isset($data['referentiels'])) {
+                $referentielIds = is_array($data['referentiels']) ? $data['referentiels'] : [$data['referentiels']];
+
+                $referentielsData = [];
+                foreach ($referentielIds as $referentielId) {
+                    if ($this->referentielExists($referentielId)) {
+                        $referentielData = $this->repository->find($referentielId);
+                        $competences = $this->repository->getCompetencesByReferentielId($referentielId);
+
+                        $referentielArray = [
+                            'id' => $referentielData->getId(),
+                            'libelle' => $referentielData->libelle,
+                            'description' => $referentielData->description,
+                            'competences' => []
+                        ];
+
+                        foreach ($competences as $type => $typeCompetences) {
+                            $competenceDataList = [];
+                            foreach ($typeCompetences as $competence) {
+                                $competenceDataList[] = [
+                                    'id' => $competence['id'],
+                                    'nom' => $competence['nom'],
+                                    'description' => $competence['description'],
+                                    'duree_aquisition' => $competence['duree_aquisition'],
+                                    'modules' => $competence['modules'] ?? []
+                                ];
+                            }
+                            $referentielArray['competences'][$type] = $competenceDataList;
+                        }
+
+                        $referentielsData[] = $referentielArray;
+                    } else {
+                        return [
+                            'status' => 404,
+                            'message' => "Le référentiel avec l'ID $referentielId n'existe pas."
+                        ];
+                    }
+                }
+
+                // Mettre à jour les référentiels
+                $promo->referentiels = $referentielsData;
+            }
+
+            // Mise à jour de l'état de la promotion si nécessaire
+            if (isset($data['etat'])) {
+                $promo->etat = $data['etat'];
+            }
+
+            // Convertir l'objet promo en tableau pour la mise à jour
+            $promoData = json_decode(json_encode($promo), true);
+
+            // Enregistrer les modifications
+            $this->promoRepository->update($promo, $promoData);
+
+            return [
+                'status' => 200,
+                'data' => $promoData,
+                'message' => 'Promotion mise à jour avec succès.'
+            ];
+        } catch (Exception $e) {
+            return [
+                'status' => 500,
+                'message' => 'Erreur lors de la mise à jour : ' . $e->getMessage()
+            ];
+        }
+    }
+
+
+
+    public function getAllPromos()
+    {
+        $promos = $this->promoRepository->all();
 
         return [
             'status' => 200,
-            'data' => $promoData,
-            'message' => 'Promotion updated successfully.'
-        ];
-    } catch (Exception $e) {
-        return [
-            'status' => 500,
-            'message' => 'Error updating promotion: ' . $e->getMessage()
+            'data' => $promos,
+            'message' => 'Promotions retrieved successfully.'
         ];
     }
-}
 
 
-public function getAllPromos()
-{
-    $promos = $this->promoRepository->all();
-    
-    return [
-        'status' => 200,
-        'data' => $promos,
-        'message' => 'Promotions retrieved successfully.'
-    ];
-}
+    public function updateReferentiels(string $promoId, array $referentiels, string $action)
+    {
+        // Trouver la promotion existante
+        $promo = $this->promoRepository->find($promoId);
+        if (!$promo) {
+            return [
+                'status' => 404,
+                'message' => 'Promotion non trouvée.'
+            ];
+        }
+
+        // Vérifier le rôle de l'utilisateur
+        $userRole = auth()->user()->role; // Supposons que le rôle de l'utilisateur est récupéré ainsi
+        $canRemoveEmptyReferentiel = $userRole === 'CM' || $userRole === 'Manager';
+
+        foreach ($referentiels as $referentielId) {
+            if (!$this->referentielExists($referentielId)) {
+                return [
+                    'status' => 404,
+                    'message' => "Le référentiel avec l'ID $referentielId n'existe pas."
+                ];
+            }
+
+            // Si l'action est 'remove', vérifier si le référentiel peut être retiré
+            if ($action === 'remove') {
+                $referentiel = $this->repository->find($referentielId);
+
+                // // Vérifier s'il y a des apprenants associés à ce référentiel
+                // $hasStudents = $this->hasStudents($referentielId); // Méthode à implémenter pour vérifier les apprenants
+                // if ($hasStudents && $userRole === 'CM') {
+                //     return [
+                //         'status' => 403,
+                //         'message' => "Le référentiel ne peut pas être retiré car il a des apprenants."
+                //     ];
+                // } elseif (!$hasStudents && !$canRemoveEmptyReferentiel) {
+                //     return [
+                //         'status' => 403,
+                //         'message' => "Le rôle {$userRole} ne peut pas retirer ce référentiel."
+                //     ];
+                // }
+
+                // Appliquer le soft delete
+                $this->repository->softDelete($referentielId);
+            }
+
+            // Si l'action est 'add', vérifier que le référentiel n'est pas déjà associé
+            if ($action === 'add') {
+                if (in_array($referentielId, array_column($promo->referentiels, 'id'))) {
+                    return [
+                        'status' => 409,
+                        'message' => "Le référentiel avec l'ID $referentielId est déjà associé à cette promotion."
+                    ];
+                }
+                // Ajoutez le référentiel à la promotion
+                $promo->referentiels[] = $this->repository->find($referentielId);
+            }
+        }
+
+        // Mettez à jour la promotion
+        $this->promoRepository->update($promo, json_decode(json_encode($promo), true));
+
+        return [
+            'status' => 200,
+            'data' => $promo,
+            'message' => 'Référentiels mis à jour avec succès.'
+        ];
+    }
+
+
+
+
+
+
+
+
+
 
 
 

@@ -13,43 +13,24 @@ class UserPolicy
     {
         return $user->role === 'ADMIN';
     }
+
     public function create(User $user)
     {
-        return $user->isAdmin() || $user->isManager() || $user->isCM();
+        return $this->hasAnyRole($user, ['ADMIN', 'MANAGER', 'CM']);
     }
 
     public function update(User $user, User $targetUser)
     {
-        return $user->isAdmin();
+        return $user->role === 'ADMIN';
     }
 
     public function view(User $user)
     {
-        return $user->isAdmin() || $user->isManager() || $user->isCM();
+        return $this->hasAnyRole($user, ['ADMIN', 'MANAGER', 'CM']);
     }
 
-    public function isAdmin(User $user)
+    protected function hasAnyRole(User $user, array $roles)
     {
-        return  $user->role === 'ADMIN';
-    }
-
-    public function isManager(User $user)
-    {
-        return  $user->role === 'MANAGER';
-    }
-
-    public function isCM(User $user)
-    {
-        return  $user->role === 'CM';
-    }
-
-    public function isCoach(User $user)
-    {
-        return  $user->role === 'COACH';
-    }
-
-    public function isApprenant(User $user)
-    {
-        return  $user->role === 'APPRENANT';
+        return in_array($user->role, $roles);
     }
 }

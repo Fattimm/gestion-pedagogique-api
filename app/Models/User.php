@@ -12,7 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
 {
-    use SoftDeletes, HasFactory, HasApiTokens; 
+    use SoftDeletes, HasFactory, HasApiTokens;
     // FirebaseSync;
 
     // Définir les attributs qui peuvent être massivement assignés
@@ -27,7 +27,7 @@ class User extends Authenticatable
         'statut',
         'password',
         'login',
-        'role', 
+        'role',
         'firebase_id',
 
     ];
@@ -42,4 +42,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    // app/Models/User.php
+
 }

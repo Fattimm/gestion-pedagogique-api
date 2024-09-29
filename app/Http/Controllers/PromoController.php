@@ -40,22 +40,28 @@ class PromoController extends Controller
     }
 
 
+    public function index()
+    {
+        $response = $this->promoService->getAllPromos();
+
+        return response()->json($response, $response['status']);
+    }
+    
+
+
     public function updateReferentiels(Request $request, $id)
     {
-        $validatedData = $request->validate([
-            'add' => 'array',
-            'remove' => 'array'
+        $data = $request->validate([
+            'referentiels' => 'required|array',
+            'action' => 'required|in:add,remove'
         ]);
 
-        if (isset($validatedData['add'])) {
-            $this->promoService->addReferentielsToPromo($id, $validatedData['add']);
-        }
-        if (isset($validatedData['remove'])) {
-            $this->promoService->removeReferentielsFromPromo($id, $validatedData['remove']);
-        }
+        $referentiels = $data['referentiels'];
+        $action = $data['action'];
 
-        return response()->json(['message' => 'Referentiels updated successfully']);
+        return $this->promoService->updateReferentiels($id, $referentiels, $action);
     }
+
 
     public function updateStatus(Request $request, $id)
     {
@@ -67,13 +73,7 @@ class PromoController extends Controller
         return response()->json(['message' => 'Status updated successfully']);
     }
 
-    public function index()
-    {
-        $response = $this->promoService->getAllPromos();
 
-        return response()->json($response, $response['status']);
-    }
-    
     public function getCurrentPromo()
     {
         $promo = $this->promoService->getCurrentPromo();

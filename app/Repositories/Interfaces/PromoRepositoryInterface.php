@@ -19,4 +19,10 @@ interface PromoRepositoryInterface
     public function updateStatus(Promo $promo, string $status): void;
     public function closePromo(Promo $promo): void;
     public function getPromoReferentiels($id);
+    public function existsByLibelle($libelle);
+    public function addReferentielToPromo($promoRef, $referentielData);
+    public function addApprenantToReferentiel($referentielRef, $apprenantData);
+    public function addCompetenceToReferentiel($referentielRef, $competenceData, $type);
+    public function addModuleToCompetence($competenceRef, $moduleData);
+    public function getLastPromo();
 }

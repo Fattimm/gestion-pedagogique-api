@@ -32,4 +32,16 @@ class UserFirebase extends FirebaseModel
         'email_verified_at' => 'datetime',
     ];
 
+     // Ajoutez cette méthode pour gérer les rôles
+     public function hasRole($role)
+     {
+         return $this->role === $role;
+     }
+ 
+     // Vous pouvez également avoir une méthode pour vérifier plusieurs rôles
+     public function hasAnyRole(array $roles)
+     {
+         return in_array($this->role, $roles);
+     }
+
 }

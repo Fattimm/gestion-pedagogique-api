@@ -18,5 +18,6 @@ interface PromoServiceInterface
     public function updatePromoStatus(string $promoId, string $status): void;
     public function closePromo(string $promoId): void;
     public function getPromoReferentiels($id);
+    public function updateReferentiels(string $promoId, array $referentiels, string $action);
     
 }
