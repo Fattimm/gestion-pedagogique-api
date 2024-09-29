@@ -1,4 +1,4 @@
-# Utilisez l'image php:8.3-fpm
+# Utilisez l'image php:8.3-fpm comme spécifié dans le commentaire
 FROM php:8.3-fpm
 
 # Install dependencies
@@ -11,6 +11,8 @@ RUN apt-get update && \
     libcurl4-openssl-dev \
     libgmp-dev \
     libgrpc-dev \
+    git \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Installation de grpc via PECL
@@ -25,21 +27,30 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Définir le répertoire de travail
 WORKDIR /var/www
 
-# Copier le contenu du projet
+# Copier les fichiers de dépendances
+COPY composer.json composer.lock ./
+
+# Installer les dépendances Composer avec plus de mémoire et en mode verbose
+RUN php -d memory_limit=-1 /usr/bin/composer install --no-scripts --no-autoloader --no-dev --prefer-dist -vvv
+
+# Copier le reste du contenu du projet
 COPY . .
+
+# Désactiver les scripts pour éviter les erreurs pendant le build
+RUN composer dump-autoload --optimize --no-dev --classmap-authoritative --no-scripts
+
 
 # Modifier les permissions
 RUN chown -R www-data:www-data /var/www
-
-# Installer les dépendances Composer
-RUN composer install
 
 # Crée le fichier firebase-key.json à partir de la variable d'environnement base64
 RUN echo $FIREBASE_KEY_BASE64 | base64 -d > /var/www/firebase-key.json 
 
 # Copier le fichier d'environnement et générer la clé
 COPY .env.example .env
-RUN php artisan key:generate
+RUN composer install --optimize-autoloader --no-dev && \
+    php artisan key:generate
+
 
 # Configurer les permissions sur le stockage et le cache
 RUN chown -R www-data:www-data /var/www/storage \
