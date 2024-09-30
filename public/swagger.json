@@ -5,12 +5,7 @@
     "version": "1.0.0",
     "description": "API pour la gestion pédagogique"
   },
-  "servers": [
-    {
-      "url": "http://localhost:3000/api/v1",
-      "description": "Serveur Local"
-    }
-  ],
+  
   "paths": {
     "/login": {
       "post": {
