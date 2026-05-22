@@ -22,14 +22,15 @@ class User extends Authenticatable
         'adresse',
         'telephone',
         'fonction',
+        'specialite',
+        'grade',
         'email',
         'photo',
         'statut',
         'password',
         'login',
-        'role', 
+        'role',
         'firebase_id',
-
     ];
 
     // Cacher certains attributs lors de la sérialisation du modèle

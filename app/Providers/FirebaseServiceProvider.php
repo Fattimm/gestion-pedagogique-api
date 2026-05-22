@@ -16,10 +16,20 @@ class FirebaseServiceProvider extends ServiceProvider
     {
 
         $this->app->singleton(Firestore::class, function ($app) {
-            return (new Factory)
-                ->withServiceAccount(env('FIREBASE_CREDENTIALS'))
-                ->withDatabaseUri(env('FIREBASE_DATABASE_URL'))
-                ->createFirestore();
+            try {
+                $credentials = base_path(env('FIREBASE_CREDENTIALS'));
+                if (empty($credentials) || !file_exists($credentials)) {
+                    return null;
+                }
+                return (new Factory)
+                    ->withServiceAccount($credentials)
+                    ->withDatabaseUri(env('FIREBASE_DATABASE_URL'))
+                    ->createFirestore();
+            } catch (\Throwable $e) {
+                // Firebase indisponible (grpc manquant ou credentials invalides)
+                logger()->warning('Firebase Firestore non disponible : ' . $e->getMessage());
+                return null;
+            }
         });
     }
 

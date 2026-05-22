@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Services\UserService;
-use Kreait\Firebase\Database;
 use App\Repositories\UserRepository;
 use App\Repositories\UserFirebaseRepository;
 use Illuminate\Support\ServiceProvider;
@@ -25,11 +24,7 @@ public function register()
         );
     });
 
-    $this->app->singleton(UserRepositoryInterface::class, function ($app) {
-        return new UserRepository(
-            $app->make(Database::class)
-        );
-    });
+    $this->app->singleton(UserRepositoryInterface::class, UserRepository::class);
 
     $this->app->singleton(UserFirebaseRepositoryInterface::class, function ($app) {
         return new UserFirebaseRepository(

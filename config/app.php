@@ -169,9 +169,10 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
-        Kreait\Laravel\Firebase\ServiceProvider::class,
+        // Kreait\Laravel\Firebase\ServiceProvider::class, // désactivé : initialisé dans FirebaseServiceProvider
         App\Providers\UserServiceProvider::class,
         App\Providers\FirebaseServiceProvider::class,
+        App\Providers\PedagogiqueServiceProvider::class,
 
 
 

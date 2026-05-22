@@ -3,18 +3,10 @@
 namespace App\Repositories;
 
 use App\Models\User;
-use Kreait\Firebase\Contract\Database;
 use App\Repositories\Interfaces\UserRepositoryInterface;
-use Illuminate\Support\Facades\Hash;
 
 class UserRepository implements UserRepositoryInterface
 {
-    protected $database;
-
-    public function __construct(Database $database)
-    {
-        $this->database = $database;
-    }
 
     public function create(array $data)
     {

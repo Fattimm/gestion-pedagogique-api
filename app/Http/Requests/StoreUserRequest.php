@@ -45,8 +45,9 @@ class StoreUserRequest extends FormRequest
             'email' => 'required|email|unique:users,email|max:255',
             'photo' => 'sometimes|nullable|image|mimes:jpg,jpeg,png|max:2048',
             'statut' => 'in:actif,inactif',
-            'role' => 'required|in:ADMIN,COACH,MANAGER,CM,APPRENANT',
-
+            'role'       => 'required|in:ADMIN,COACH,MANAGER,CM,APPRENANT',
+            'specialite' => 'nullable|string|max:255',
+            'grade'      => 'nullable|string|max:100',
         ];
     }
 
