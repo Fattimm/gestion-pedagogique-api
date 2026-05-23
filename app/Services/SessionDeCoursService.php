@@ -15,9 +15,9 @@ class SessionDeCoursService implements SessionDeCoursServiceInterface
         protected CoursRepositoryInterface $coursRepo
     ) {}
 
-    public function lister()
+    public function lister(array $filters = [])
     {
-        return $this->sessionRepo->all();
+        return $this->sessionRepo->all($filters);
     }
 
     public function trouver(int $id)

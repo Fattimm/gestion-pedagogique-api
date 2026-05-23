@@ -15,9 +15,10 @@ class SessionDeCoursController extends Controller
         protected SessionDeCoursService $service
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(['data' => $this->service->lister()], 200);
+        $filters = $request->only(['statut', 'a_valider']);
+        return response()->json(['data' => $this->service->lister($filters)], 200);
     }
 
     public function store(StoreSessionDeCoursRequest $request)

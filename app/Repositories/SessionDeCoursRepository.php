@@ -7,9 +7,21 @@ use App\Repositories\Interfaces\SessionDeCoursRepositoryInterface;
 
 class SessionDeCoursRepository implements SessionDeCoursRepositoryInterface
 {
-    public function all()
+    public function all(array $filters = [])
     {
-        return SessionDeCours::with(['cours.module', 'cours.professeur', 'salle'])->get();
+        $query = SessionDeCours::with(['cours.module', 'cours.professeur', 'salle'])
+            ->orderBy('date', 'desc')
+            ->orderBy('heure_debut');
+
+        if (!empty($filters['statut'])) {
+            $query->where('statut', $filters['statut']);
+        }
+
+        if (!empty($filters['a_valider'])) {
+            $query->where('statut', 'planifiee')->whereDate('date', '<', now());
+        }
+
+        return $query->get();
     }
 
     public function find(int $id)

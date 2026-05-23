@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\PasswordResetController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AnneeScolaireController;
 use App\Http\Controllers\ClasseController;
@@ -25,8 +26,10 @@ use Laravel\Passport\Http\Controllers\AuthorizedAccessTokenController;
 Route::prefix('v1')->group(function () {
 
     // ─── Routes publiques ───────────────────────────────────────────
-    Route::post('/login',  [AuthController::class, 'login']);
-    Route::get('/logout',  [AuthController::class, 'logout'])->middleware('auth:api');
+    Route::post('/login',           [AuthController::class, 'login']);
+    Route::get('/logout',           [AuthController::class, 'logout'])->middleware('auth:api');
+    Route::post('/forgot-password', [PasswordResetController::class, 'demander']);
+    Route::post('/reset-password',  [PasswordResetController::class, 'reinitialiser']);
 
     // ─── Routes authentifiées ───────────────────────────────────────
     Route::middleware('auth:api')->group(function () {
@@ -89,6 +92,8 @@ Route::prefix('v1')->group(function () {
             ->middleware('role:APPRENANT,MANAGER,CM');
 
         // ── Sessions ────────────────────────────────────────────────
+        Route::get('/sessions', [SessionDeCoursController::class, 'index'])
+            ->middleware('role:CM,MANAGER');
         Route::get('/cours/{id}/sessions', [SessionDeCoursController::class, 'parCours']);
         Route::get('/sessions/{id}',       [SessionDeCoursController::class, 'show']);
         Route::patch('/sessions/{id}',     [SessionDeCoursController::class, 'update'])

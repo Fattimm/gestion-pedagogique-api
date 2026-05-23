@@ -75,7 +75,7 @@ class UserService implements UserServiceInterface
 
         try {
             // Vérifier si un mot de passe est fourni et le hacher
-            if (isset($data['password'])) {
+            if (!empty($data['password'])) {
                 $data['password'] = Hash::make($data['password']);
             }
 

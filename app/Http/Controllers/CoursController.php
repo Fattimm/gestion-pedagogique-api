@@ -57,7 +57,7 @@ class CoursController extends Controller
             'statut'   => 'sometimes|in:planifie,en_cours,termine',
         ]);
 
-        $query = Cours::with(['module', 'classes', 'sessions'])
+        $query = Cours::with(['module', 'semestre', 'classes', 'sessions'])
             ->where('professeur_id', $profId);
 
         if ($request->filled('statut')) {

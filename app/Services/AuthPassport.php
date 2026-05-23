@@ -28,6 +28,7 @@ class AuthPassport implements AuthServiceInterface
                 'status' => 200,
                 'data' => [
                     'accessToken' => $tokenResult,
+                    'user' => $user,
                 ],
                 'message' => 'Login réussi'
             ];
