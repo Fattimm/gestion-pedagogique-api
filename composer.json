@@ -6,6 +6,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "ext-grpc": "*",
         "darkaonline/l5-swagger": "^8.6",
         "google/cloud-firestore": "^1.46",
         "guzzlehttp/guzzle": "^7.2",
